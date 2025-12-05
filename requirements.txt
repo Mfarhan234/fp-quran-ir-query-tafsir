@@ -5,3 +5,6 @@ xgboost
 lightgbm
 sentence-transformers
 streamlit
+openai
+python-dotenv
+requests

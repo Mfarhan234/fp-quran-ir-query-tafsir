@@ -1,0 +1,13 @@
+# jangan upload env & config sensitif
+.env
+*.env
+
+# cache python
+__pycache__/
+*.pyc
+
+# cache notebook
+.ipynb_checkpoints/
+
+*.pkl
+models/*.pkl
