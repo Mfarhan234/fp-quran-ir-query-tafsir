@@ -11,3 +11,19 @@ __pycache__/
 
 *.pkl
 models/*.pkl
+
+quran_ir/processed/
+
+# --- MODEL ARTIFACTS (IGNORE LARGE FILES) ---
+models/sbert_finetuned_quran/
+*.bin
+*.pt
+*.onnx
+
+data/
+models/sbert_finetuned_quran/
+*.pkl
+__pycache__/
+*.py[cod]
+.env
+.DS_Store

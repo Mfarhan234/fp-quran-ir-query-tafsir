@@ -1,10 +1,15 @@
-pandas
-numpy
-scikit-learn
-xgboost
-lightgbm
-sentence-transformers
-streamlit
-openai
-python-dotenv
-requests
+# pandas
+# numpy
+# scikit-learn
+# xgboost
+# lightgbm
+# sentence-transformers
+# streamlit
+# openai
+# python-dotenv
+# requests
+
+
+rank_bm25
+nltk
+torch
