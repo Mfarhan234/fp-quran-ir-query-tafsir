@@ -13,6 +13,7 @@ Sistem pencarian tafsir Al-Qur'an berbasis **Two-Stage Retrieval** yang menginte
 - [Cara Penggunaan](#cara-penggunaan)
 - [Struktur Proyek](#struktur-proyek)
 - [Pipeline Penelitian](#pipeline-penelitian)
+  - [Text Preprocessing](#2-text-preprocessing)
 - [Performa Model](#performa-model)
 - [Dataset](#dataset)
 - [Teknologi](#teknologi)
@@ -144,18 +145,32 @@ Karena keterbatasan data label relevansi, sistem menggunakan **weak supervision*
 - **Hard Negative Mining**: Strategi *Skip Top-5* untuk mining 3 hard negatives per query
 - **Output**: ~170,000 pasangan query-tafsir dengan label
 
-### 2. Ekstraksi Fitur Hibrida
+### 2. Text Preprocessing
+
+Sebelum ekstraksi fitur, sistem melakukan preprocessing pada query dan dokumen tafsir:
+
+**Tahapan Preprocessing untuk Fitur Leksikal (BM25, Jaccard, Overlap)**:
+- **Lowercasing**: Mengubah semua teks menjadi huruf kecil
+- **Punctuation Removal**: Menghapus tanda baca menggunakan `string.punctuation`
+- **Tokenization**: Memecah teks menjadi token kata
+- **Stopword Removal**: Menghilangkan kata-kata umum bahasa Indonesia (menggunakan NLTK stopwords)
+
+**Preprocessing untuk SBERT**:
+- SBERT menggunakan tokenizer internal (SentencePiece) yang sudah ter-built-in
+- Tidak memerlukan preprocessing manual karena model sudah di-fine-tune dengan teks asli
+
+### 3. Ekstraksi Fitur Hibrida
 
 Setiap pasangan kueri-tafsir dikonversi menjadi **4 fitur numerik**:
 
-| Fitur               | Tipe     | Deskripsi                         |
-| ------------------- | -------- | --------------------------------- |
-| SBERT Similarity    | Semantik | Cosine similarity dari embeddings |
-| BM25 Score          | Leksikal | Probabilistic ranking function    |
-| Jaccard Similarity  | Leksikal | Set intersection/union ratio      |
-| Overlap Coefficient | Leksikal | Normalized word overlap           |
+| Fitur               | Tipe     | Deskripsi                         | Preprocessing           |
+| ------------------- | -------- | --------------------------------- | ----------------------- |
+| SBERT Similarity    | Semantik | Cosine similarity dari embeddings | SBERT internal tokenizer |
+| BM25 Score          | Leksikal | Probabilistic ranking function    | Lowercase + stopword removal |
+| Jaccard Similarity  | Leksikal | Set intersection/union ratio      | Lowercase + stopword removal |
+| Overlap Coefficient | Leksikal | Normalized word overlap           | Lowercase + stopword removal |
 
-### 3. Pelatihan Model (Learning to Rank)
+### 4. Pelatihan Model (Learning to Rank)
 
 **Pendekatan**: Pointwise Learning to Rank (klasifikasi biner)
 
@@ -166,7 +181,7 @@ Setiap pasangan kueri-tafsir dikonversi menjadi **4 fitur numerik**:
 
 **Model Terbaik**: XGBoost dengan hyperparameter tuning
 
-### 4. Deployment
+### 5. Deployment
 
 - **Framework**: Streamlit
 - **Inference**: Real-time two-stage retrieval
