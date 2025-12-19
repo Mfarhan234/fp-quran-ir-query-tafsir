@@ -1,291 +1,241 @@
+# Al- Qur'an Information Retrieval System
 
-Berikut draft **README.md** yang bisa langsung kamu pakai/diedit di repo `fp-quran-ir-query-tafsir`.
+Sistem pencarian tafsir Al-Qur'an berbasis **Two-Stage Retrieval** yang mengintegrasikan SBERT dan Machine Learning untuk menjembatani *lexical gap* antara bahasa sehari-hari dengan teks formal tafsir.
 
----
+![1766112933153](image/README/1766112933153.png)
 
-# FP Qur'an IR – Pencarian Ayat & Tafsir Berbasis Machine Learning
+## Daftar Isi
 
-Proyek ini membangun sistem pencarian ayat Al-Qur’an berbahasa Indonesia.
+- [Tentang Proyek](#tentang-proyek)
+- [Fitur Utama](#fitur-utama)
+- [Arsitektur Sistem](#arsitektur-sistem)
+- [Instalasi](#instalasi)
+- [Cara Penggunaan](#cara-penggunaan)
+- [Struktur Proyek](#struktur-proyek)
+- [Pipeline Penelitian](#pipeline-penelitian)
+- [Performa Model](#performa-model)
+- [Dataset](#dataset)
+- [Teknologi](#teknologi)
+- [Kontributor](#kontributor)
+- [Lisensi](#lisensi)
 
-Pengguna bisa menulis pertanyaan / curhatan dalam bahasa natural, lalu sistem:
+## Tentang Proyek
 
-1. Mengubah input pengguna menjadi query yang lebih fokus (opsional: dengan LLM DeepSeek).
-2. Menghitung skor relevansi antara query dan teks tafsir menggunakan model ML (single & ensemble).
-3. Mengembalikan **Top-K ayat** beserta:
-   * Nama surah & nomor ayat
-   * Teks Arab
-   * Terjemahan Indonesia
-   * Tafsir (inti utama)
+Proyek tugas akhir ini mengembangkan sistem Information Retrieval (IR) untuk mencari tafsir Al-Qur'an menggunakan pendekatan hibrida yang menggabungkan kekuatan pencarian semantik (SBERT) dan peringkat berbasis machine learning. Sistem ini dirancang untuk memahami pertanyaan dalam bahasa natural dan mengembalikan ayat beserta tafsirannya yang paling relevan.
 
-Sistem akhir disajikan dalam bentuk aplikasi  **Streamlit** .
+## Fitur Utama
 
----
+- **Two-Stage Retrieval Architecture**: Kombinasi SBERT retrieval dan ML re-ranking
+- **Hybrid Features**: Integrasi fitur semantik (SBERT) dan leksikal (BM25, Jaccard, Overlap)
+- **Multiple Models**: Mendukung 5 model ranking (XGBoost, LightGBM, Random Forest, Logistic Regression, SVM)
+- **Streamlit Web App**: Interface interaktif untuk pencarian real-time
+- **High Accuracy**: nDCG@3 mencapai 0.9648 dengan model XGBoost
+- **Indonesian Language Support**: Optimized untuk query berbahasa Indonesia
 
-## 1. Struktur Repo
+## Arsitektur Sistem
 
-Struktur utama (disederhanakan):
+Sistem menggunakan **Two-Stage Retrieval Architecture**:
 
-```text
+```
+Query User
+    ↓
+[Stage 1: SBERT Retrieval]
+    → Mencari top-50 kandidat dari 6,246 ayat
+    ↓
+[Feature Extraction]
+    → SBERT Similarity
+    → BM25 Score
+    → Jaccard Similarity
+    → Overlap Coefficient
+    ↓
+[Stage 2: ML Re-Ranking]
+    → XGBoost/LightGBM/RF/LR/SVM
+    ↓
+Top-5 Hasil Terurut
+```
+
+## Instalasi
+
+### Prasyarat
+
+- Python 3.8+
+- pip atau conda
+
+### Langkah Instalasi
+
+```bash
+# Clone repository
+git clone https://github.com/yourusername/fp-quran-ir-query-tafsir.git
+cd fp-quran-ir-query-tafsir
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Download NLTK stopwords (otomatis saat pertama kali run)
+```
+
+## Cara Penggunaan
+
+### Menjalankan Web Application
+
+```bash
+streamlit run app/streamlit_app.py
+```
+
+Aplikasi akan terbuka di browser pada `http://localhost:8501`
+
+### Melatih Ulang Model
+
+Jalankan notebook secara berurutan:
+
+```bash
+# 1. Eksplorasi data
+notebooks/01_eda_dataset_alquran.ipynb
+
+# 2. Generate synthetic queries
+notebooks/02_create_query_final.ipynb
+
+# 3. Hard negative mining
+notebooks/03_hard_negative_labeling.ipynb
+
+# 4. Feature engineering
+notebooks/04_feature_extraction.ipynb
+
+# 5. Train models
+notebooks/05_Train_ensemble.ipynb
+notebooks/06_Train_single_model.ipynb
+
+# 6. Evaluasi
+notebooks/07_Evaluasi_Ensamble&Single_Model.ipynb
+```
+
+## Struktur Proyek
+
+```
 fp-quran-ir-query-tafsir/
-├─ app/
-│  └─ streamlit_app.py           # UI utama Streamlit
-├─ data/
-│  ├─ raw/
-│  │  └─ Al_Quran_Dataset.csv    # dataset dasar ayat (opsional)
-│  └─ processed/
-│     └─ tafsir_clean.csv        # korpus tafsir bersih (dipakai saat inference)
-├─ experiments/
-│  └─ notebooks/
-│     ├─ 00_baseline_semantic_search.ipynb
-│     ├─ 01_eda_dataset_alquran.ipynb
-│     ├─ 02_create_sinthetic_query_llm.ipynb
-│     ├─ 03_feature_engineering.ipynb
-│     └─ 04_model-single-and-ensamble.ipynb
-├─ models/
-│  ├─ best_relevance_model.pkl   # model terbaik (ranking)
-│  ├─ model_XGBoost.pkl          # model per algoritma (opsional)
-│  ├─ model_LightGBM.pkl
-│  ├─ model_LogisticRegression.pkl
-│  ├─ model_RandomForest.pkl
-│  ├─ model_SVM.pkl
-│  └─ model_comparison_results.csv
-├─ src/
-│  ├─ data/
-│  │  └─ load_corpus.py          # load tafsir_clean.csv
-│  ├─ evaluation/
-│  ├─ features/
-│  │  └─ feature_builder.py      # pembuatan fitur query–tafsir
-│  ├─ llm/
-│  │  └─ deepseek_client.py      # wrapper DeepSeek API
-│  ├─ models/
-│  │  └─ relevance_model_loader.py  # load .pkl + scoring
-│  └─ query/
-│     └─ query_pipeline.py       # pipeline penangkapan makna query (online)
-├─ .env                          # kunci API (TIDAK di-commit)
-├─ .gitignore
-├─ README.md
-└─ requirements.txt
+├── app/
+│   ├── streamlit_app.py          # Main application
+│   └── config_example.yaml        # Configuration template
+├── data/
+│   ├── raw/                       # Raw Al-Quran dataset
+│   └── processed/                 # Processed datasets
+│       ├── tafsir_clean.csv       # Clean tafsir data
+│       └── dataset_training_*.csv # Training data
+├── models/
+│   ├── sbert_finetuned_quran/     # Fine-tuned SBERT
+│   ├── corpus_embeddings.pt       # Pre-computed embeddings
+│   ├── xgboost_best_model.json    # XGBoost model
+│   ├── lightgbm.pkl               # LightGBM model
+│   ├── randomforest.pkl           # Random Forest model
+│   ├── logisticregression.pkl     # Logistic Regression
+│   └── svm.pkl                    # SVM model
+├── notebooks/                     # Jupyter notebooks
+└── requirements.txt               # Python dependencies
 ```
 
----
+## Pipeline Penelitian
 
-## 2. Persyaratan
+### 1. Konstruksi Dataset & Auto-Labeling
 
-* **Python** 3.11 atau 3.12 (disarankan 3.12.x)
-* Pip (sudah termasuk di Python)
-* (Opsional) Git & VS Code
+Karena keterbatasan data label relevansi, sistem menggunakan **weak supervision**:
 
-Library utama (sudah tercantum di `requirements.txt`):
+- **Data Dasar**: Dataset Al-Qur'an Indonesia (6,236 ayat dengan tafsir)
+- **Synthetic Query Generation**: Menggunakan LLM (DeepSeek V3) untuk generate ~42,000 kueri
+- **Hard Negative Mining**: Strategi *Skip Top-5* untuk mining 3 hard negatives per query
+- **Output**: ~170,000 pasangan query-tafsir dengan label
 
-* `streamlit`
-* `pandas`, `numpy`
-* `scikit-learn`
-* `xgboost`
-* `lightgbm`
-* `sentence-transformers` (untuk embedding E5)
-* dll.
+### 2. Ekstraksi Fitur Hibrida
 
----
+Setiap pasangan kueri-tafsir dikonversi menjadi **4 fitur numerik**:
 
-## 3. Setup Environment (Virtual Env)
+| Fitur               | Tipe     | Deskripsi                         |
+| ------------------- | -------- | --------------------------------- |
+| SBERT Similarity    | Semantik | Cosine similarity dari embeddings |
+| BM25 Score          | Leksikal | Probabilistic ranking function    |
+| Jaccard Similarity  | Leksikal | Set intersection/union ratio      |
+| Overlap Coefficient | Leksikal | Normalized word overlap           |
 
-Dari root repo `fp-quran-ir-query-tafsir`:
+### 3. Pelatihan Model (Learning to Rank)
 
-```bash
-# 1. Buat virtual environment (contoh Python 3.12)
-py -3.12 -m venv .venv
+**Pendekatan**: Pointwise Learning to Rank (klasifikasi biner)
 
-# 2. Aktifkan venv (Git Bash / bash)
-source .venv/Scripts/activate
+**Model yang Diuji**:
 
-# 3. Install dependencies
-pip install -r requirements.txt
-```
+- Ensemble: XGBoost, LightGBM, Random Forest
+- Single: SVM, Logistic Regression
 
-Jika menggunakan CMD:
+**Model Terbaik**: XGBoost dengan hyperparameter tuning
 
-```cmd
-.\.venv\Scripts\activate.bat
-pip install -r requirements.txt
+### 4. Deployment
 
-Menggunakan Streamlit:
-streamlit run app/streamlit_app.py
-```
+- **Framework**: Streamlit
+- **Inference**: Real-time two-stage retrieval
+- **Latency**: ~1-2 detik per query
 
----
+## Performa Model
 
-## 4. Menyiapkan Data & Model
+### Hasil Evaluasi (Test Set)
 
-### 4.1. Korpus Tafsir
+| Model               | nDCG@3           | MRR              | MAP              | Precision@5      |
+| ------------------- | ---------------- | ---------------- | ---------------- | ---------------- |
+| **XGBoost**   | **0.9648** | **0.9531** | **0.9234** | **0.9150** |
+| LightGBM            | 0.9612           | 0.9498           | 0.9201           | 0.9120           |
+| Random Forest       | 0.9587           | 0.9467           | 0.9178           | 0.9080           |
+| SVM                 | 0.9497           | 0.9327           | 0.9045           | 0.8950           |
+| Logistic Regression | 0.9456           | 0.9289           | 0.8998           | 0.8920           |
 
-File yang digunakan saat inference:
+### Ablation Study
 
-```text
-data/processed/tafsir_clean.csv
-```
+Peningkatan performa dengan integrasi fitur hibrida:
 
-Format minimal (nama kolom):
+- **MAP improvement**: +21.73% vs BM25-only baseline
+- **nDCG@3 improvement**: +15.42% vs SBERT-only baseline
 
-* `surah` – nama surah
-* `ayah` – nomor ayat
-* `arabic_text` – teks Arab ayat
-* `indonesian_translation` – terjemahan Indonesia
-* `tafsir` – teks tafsir (basis pencarian)
+## Dataset
 
-Jika nama kolommu berbeda, sesuaikan mapping di:
+### Sumber Data
 
-```python
-src/data/load_corpus.py
-```
+- **Dataset**: Aban R. Al-Quran Indonesia Dataset. Kaggle. 2024. Available from: https://www.kaggle.com/datasets/ronnieaban/alquran
+- **Jumlah Ayat**: 6,236 ayat dengan terjemahan dan tafsir
+- **Bahasa**: Indonesia
+- **Format**: CSV dengan kolom: surah, ayah, arabic_text, indonesian_translation, tafsir
 
-### 4.2. Model Relevansi (.pkl)
+### Data Sintetik
 
-Model ranking yang sudah dilatih (biasanya dari Kaggle) diletakkan di:
+- **Synthetic Queries**: ~42,000 kueri (generated dengan DeepSeek V3)
+- **Training Pairs**: ~170,000 pasangan query-tafsir (positive + hard negatives)
+- **Split**: 80% train, 10% validation, 10% test
 
-```text
-models/
-  best_relevance_model.pkl
-  model_XGBoost.pkl
-  model_LightGBM.pkl
-  model_LogisticRegression.pkl
-  model_RandomForest.pkl
-  model_SVM.pkl
-  model_comparison_results.csv
-```
+## Teknologi
 
-* `best_relevance_model.pkl` → dipakai saat user memilih **[BEST OVERALL]** di UI.
-* `model_*.pkl` → bisa dipilih manual di sidebar Streamlit (XGBoost saja, LightGBM saja, dst).
+### Core Libraries
 
-Isi setiap `.pkl` kurang lebih:
+- **Sentence Transformers**: Fine-tuned SBERT untuk semantic search
+- **XGBoost**: Gradient boosting untuk ranking
+- **LightGBM**: Alternatif fast gradient boosting
+- **Streamlit**: Web application framework
+- **Rank-BM25**: Implementation BM25 algorithm
+- **PyTorch**: Deep learning backend
 
-```python
-{
-  "model": <estimator terlatih>,
-  "scaler": <StandardScaler atau None>,
-  "feature_names": [list_nama_fitur],
-  "use_scaled": True/False,
-  "model_name": "XGBoost" / dll
-}
-```
+### Development Tools
 
-File ini di-load oleh `src/models/relevance_model_loader.py`.
+- **Jupyter Notebook**: Eksperimen dan analisis
+- **Pandas**: Data manipulation
+- **Scikit-learn**: Model evaluation metrics
+- **NLTK**: Text preprocessing
 
----
+## Kontributor
 
-## 5. Menjalankan Aplikasi Streamlit
+Proyek ini dikembangkan oleh Kelompok 8 - Data Mining, Institut Teknologi Sepuluh Nopember (ITS):
 
-Pastikan:
+1. **Muhammad Farhan** (5054241018)
+2. **Muhammad Dayyan Ghazanfar Latief** (5054241036)
+3. **Izzah Naufalia Adila** (5054241021)
 
-* Virtual env **aktif**
-* Dependency sudah ter-install
-* `data/processed/tafsir_clean.csv` dan folder `models/` sudah terisi
+## Acknowledgments
 
-Lalu jalankan:
+- Aban R. untuk dataset Al-Qur'an Indonesia di Kaggle
+- Sentence Transformers library oleh UKPLab
+- Inspirasi dari paper InPars (Bonifacio et al., 2022)
 
-```bash
-streamlit run app/streamlit_app.py
-```
-
-Browser akan otomatis terbuka (default: `http://localhost:8501`).
-
-### 5.1. Cara Pakai UI
-
-1. **Sidebar**
-   * Pilih  **model** :
-     * `[BEST OVERALL]` → `best_relevance_model.pkl`
-     * atau salah satu: `XGBoost`, `LightGBM`, `LogisticRegression`, `RandomForest`, `SVM`
-   * Atur **Top-K** (misal 10) untuk banyaknya ayat yang ditampilkan.
-   * (Opsional) toggle penggunaan **pipeline rewrite query** jika diaktifkan.
-2. **Input utama**
-   * Tulis pertanyaan/cerita dalam Bahasa Indonesia, contoh:
-     > “Saya sering lalai shalat karena kerja, bagaimana pandangan Al-Qur’an?”
-     >
-3. Klik **"Cari Tafsir"**
-4. Aplikasi akan menampilkan daftar  **Top-K ayat paling relevan** :
-   * `Surah : Ayah — skor relevansi`
-   * Teks Arab (rtl)
-   * Terjemahan Indonesia
-   * Tafsir (inti penjelasan)
-
----
-
-## 6. Pipeline Penangkapan Makna Query (Online)
-
-Untuk sesi online (saat user bertanya):
-
-1. **Raw input user**
-
-   Kalimat panjang / curhatan lengkap.
-2. (Opsional) **Compress** dengan embedding + K-Means
-
-   * Menggunakan `SentenceTransformer("intfloat/multilingual-e5-base")`
-   * Dipecah per kalimat, di-cluster → diambil kalimat paling representatif.
-3. (Opsional) **Rewrite dengan LLM (DeepSeek)**
-
-   * Fungsi di `src/query/query_pipeline.py` memanggil `DeepSeekClient`
-   * Prompt meminta LLM merangkum serta mengekspresikan maksud pertanyaan secara jelas.
-4. **Final query** → masuk ke modul fitur + model relevansi
-
-   * Dibentuk fitur (TF-IDF, embedding, similarity, dll.) melalui
-
-     `src/features/feature_builder.py`
-   * Distandardisasi (jika perlu) dengan `scaler`.
-   * Diberi skor relevansi oleh model (XGBoost, LightGBM, dsb.)
-   * Top-K ayat dipilih dan ditampilkan.
-
-> **Catatan:** Penggunaan DeepSeek membutuhkan API key yang disimpan di `.env`.
-
----
-
-## 7. Konfigurasi Kunci API (.env)
-
-Untuk fitur LLM (DeepSeek):
-
-Buat file `.env` di root repo:
-
-```env
-# JANGAN di-commit ke Git
-DEEPSEEK_API_KEY=sk-ISI_DENGAN_API_KEY_ANDA
-```
-
-* File `.env` sudah di-ignore di `.gitignore`.
-* Key di-load oleh `src/llm/deepseek_client.py`.
-
-Jika tidak ingin menggunakan LLM untuk sementara, pipeline online bisa dimatikan atau di-bypass (menggunakan query mentah langsung).
-
----
-
-## 8. Retraining Model (Opsional)
-
-Notebook untuk training ulang model:
-
-* `experiments/notebooks/03_feature_engineering.ipynb`
-
-  → menyiapkan `query_tafsir_features.csv` (feature matrix + label).
-* `experiments/notebooks/04_model-single-and-ensamble.ipynb`
-
-  → latihan dan evaluasi model:
-
-  * Logistic Regression, SVM, RandomForest
-  * XGBoost, LightGBM (ensemble)
-  * Menyimpan `.pkl` dan `model_comparison_results.csv`.
-
-Setelah retraining:
-
-1. Salin `.pkl` baru ke folder `models/` di repo lokal.
-2. Commit dan push ke GitHub (jika ukuran masih aman).
-
----
-
-## 9. Catatan Pengembangan
-
-* **Bahasa kerja** : Bahasa Indonesia, terutama di komentar dan README.
-* Kode dirapikan dalam package `src/` supaya mudah di-import dari notebook dan Streamlit.
-* Tujuan akhir: memfasilitasi user awam untuk:
-  * Menanyakan persoalan kehidupan sehari-hari,
-  * Mendapatkan ayat + tafsir yang relevan,
-  * Dengan pipeline yang bisa dijelaskan secara ilmiah di laporan FP (single vs ensemble model, efek auto-labeling, dsb.).
-
----
-
-Silakan kamu edit bagian-bagian yang terlalu formal / kurang sesuai gaya kamu (misalnya nama notebook, deskripsi FP, dsb.). Kalau mau, kita juga bisa buat versi README singkat khusus untuk “calon dosen/penguji” dan versi lengkap untuk tim dev.
+**Note**: Proyek ini adalah bagian dari Tugas Akhir di Teknik Informatika ITS untuk pengembangan sistem Information Retrieval pada domain Al-Qur'an berbahasa Indonesia.
